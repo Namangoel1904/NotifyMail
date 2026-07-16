@@ -188,8 +188,8 @@ def process_inbox():
 
         for e_id in email_ids:
             try:
-                # Fetch RFC822 and X-GM-THRID for deep linking
-                res, msg_data = mail.fetch(e_id, "(RFC822 X-GM-THRID)")
+                # Fetch BODY.PEEK[] (to avoid marking as read) and X-GM-THRID for deep linking
+                res, msg_data = mail.fetch(e_id, "(BODY.PEEK[] X-GM-THRID)")
                 if res != "OK":
                     continue
                 
@@ -198,7 +198,8 @@ def process_inbox():
                 
                 for response_part in msg_data:
                     if isinstance(response_part, tuple):
-                        if b"RFC822" in response_part[0]:
+                        # The server responds with BODY[] when BODY.PEEK[] is requested
+                        if b"BODY[" in response_part[0] or b"RFC822" in response_part[0]:
                             raw_email = response_part[1]
                         
                         # Extract thread ID from the fetch response line
