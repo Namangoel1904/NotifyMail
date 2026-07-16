@@ -175,7 +175,7 @@ def process_inbox():
 
         # Search for unread and unstarred emails within the last 2 days
         print("Searching for recent unread and unstarred emails...")
-        status, messages = mail.search(None, 'X-GM-RAW', 'newer_than:2d is:unread -is:starred')
+        status, messages = mail.search(None, "UNSEEN", "UNFLAGGED", "X-GM-RAW", "newer_than:2d")
         
         if status != "OK":
             print("Failed to search emails.")
