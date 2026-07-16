@@ -30,6 +30,17 @@ KEYWORD_WEIGHTS = {
     r"\bupdate\b": 10
 }
 
+NEGATIVE_WEIGHTS = {
+    r"\bunsubscribe\b": -50,
+    r"\bnewsletter\b": -50,
+    r"\bapply now\b": -40,
+    r"\bpromotions\b": -30,
+    r"unstop": -50,
+    r"\bhackathon\b": -20,
+    r"\bwebinar\b": -30,
+    r"\bmarketing\b": -30
+}
+
 DOMAIN_WEIGHTS = {
     r"\.edu$": 20,
     r"workday\.com$": 20,
@@ -112,6 +123,9 @@ def evaluate_urgency(sender, subject, body):
     for pattern, weight in KEYWORD_WEIGHTS.items():
         if re.search(pattern, subject, re.IGNORECASE):
             score += (weight // 2) # Half weight for subject matches
+    for pattern, weight in NEGATIVE_WEIGHTS.items():
+        if re.search(pattern, subject, re.IGNORECASE):
+            score += weight
             
     # Evaluate body by sentence to find context
     sentences = split_sentences(body)
@@ -121,6 +135,9 @@ def evaluate_urgency(sender, subject, body):
     for sentence in sentences:
         sentence_score = 0
         for pattern, weight in KEYWORD_WEIGHTS.items():
+            if re.search(pattern, sentence, re.IGNORECASE):
+                sentence_score += weight
+        for pattern, weight in NEGATIVE_WEIGHTS.items():
             if re.search(pattern, sentence, re.IGNORECASE):
                 sentence_score += weight
                 
@@ -156,9 +173,9 @@ def process_inbox():
         mail.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
         mail.select("INBOX")
 
-        # Search for unread and unstarred emails
-        print("Searching for unread and unstarred emails...")
-        status, messages = mail.search(None, "UNSEEN", "UNFLAGGED")
+        # Search for unread and unstarred emails within the last 2 days
+        print("Searching for recent unread and unstarred emails...")
+        status, messages = mail.search(None, 'X-GM-RAW', 'newer_than:2d is:unread -is:starred')
         
         if status != "OK":
             print("Failed to search emails.")
