@@ -479,8 +479,9 @@ def process_inbox():
                     if len(msg_body) > 200:
                         msg_body = msg_body[:197] + "..."
 
+                    sender_name = sender.split('<')[0].strip()
                     headers = {
-                        "X-Title": f"\U0001f6a8 {sender.split('<')[0].strip()}",
+                        "X-Title": f"Urgent Mail: {sender_name}",
                         "X-Priority": "5",
                         "X-Tags": "rotating_light,email",
                     }
