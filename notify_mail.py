@@ -486,10 +486,10 @@ def process_inbox():
                         "X-Tags": "rotating_light,email",
                     }
                     if thread_id:
-                        headers["X-Click"] = (
-                            f"intent://mail.google.com/mail/u/0/#inbox/{thread_id}"
-                            f"#Intent;package=com.google.android.gm;scheme=https;end"
-                        )
+                        # googlegmail:// is Gmail's own registered URI scheme on Android.
+                        # ntfy opens this directly via ACTION_VIEW, which Android hands off
+                        # to the Gmail app. Falls back to https:// for iOS/browser.
+                        headers["X-Click"] = f"googlegmail://mail/u/0/#inbox/{thread_id}"
 
                     requests.post(
                         f"https://ntfy.sh/{NTFY_TOPIC}",
