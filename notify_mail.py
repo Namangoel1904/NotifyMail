@@ -21,13 +21,18 @@ IMAP_SERVER = "imap.gmail.com"
 KEYWORD_WEIGHTS = {
     r"\binterview\b": 40,
     r"\boffer\b": 40,
+    r"\bshortlisted\b": 40,
+    r"\bselected\b": 40,
     r"\baction required\b": 30,
     r"\bdeadline\b": 30,
     r"\burgent\b": 30,
+    r"\basap\b": 30,
     r"\bnext steps\b": 20,
     r"\bdocument(s)?\b": 20,
+    r"\breminder\b": 20,
     r"\bstatus\b": 10,
-    r"\bupdate\b": 10
+    r"\bupdate\b": 10,
+    r"\bapplication\b": 10
 }
 
 NEGATIVE_WEIGHTS = {
