@@ -115,7 +115,12 @@ TIER3_KEYWORDS = [
     r"\bconfirm (by|before|your|availability)\b",
     r"\bdeadline\b",
     r"\blast (date|day|chance)\b",
-    r"\bexpires? (today|soon|on|by)\b",
+    r"\bexpires? (today|soon|on|by|on)\b",
+    r"\bexpir(e|es|ed|ing)\b",       # catches 'expire', 'expiring', 'expired'
+    r"\brenew(al)?\b",               # domain/subscription renewal
+    r"\bsubscription (expired|expiring|due|renewal)\b",
+    r"\bdomain (expir|renew)\w*\b",  # "domain expiring", "domain renewal"
+    r"\bhosting (expir|renew)\w*\b",
     r"\btime.sensitive\b",
     r"\bimmediately\b",
     r"\basap\b",
@@ -125,6 +130,9 @@ TIER3_KEYWORDS = [
     r"\bdon.t miss\b",
     r"\bfinal (reminder|notice|warning|call)\b",
     r"\blast (reminder|opportunity|warning)\b",
+    r"\bdiscarded\b",
+    r"\bsuspended\b",
+    r"\bdeactivated\b",
 ]
 
 # Tier 4 — Academic & Official (25 pts): Exams, college, government
@@ -198,8 +206,8 @@ NEGATIVE_SUBJECT_PATTERNS = [
     r"\bnewsletter\b",
     r"\bweekly (digest|update|roundup)\b",
     r"\bmonthly (digest|update|newsletter)\b",
-    r"(\d+%?\s*off|sale|free|win|prize|lucky draw)",
-    r"\blimited time\b",
+    r"(\d+%?\s*off\b|\bsale\b|\bfree trial\b|\bwin big\b|\bprize\b|\blucky draw\b)",
+    r"\blimited time (offer|deal)\b",
     r"\bclick here\b",
     r"\bexclusive (offer|deal)\b",
     r"\bapply (now|today) to \d+",   # "Apply now to 50 jobs" style promos
@@ -367,23 +375,32 @@ def evaluate_urgency(sender, subject, body, link_count=0, headers_dict=None):
     if body_score > 0:
         signals.append(f"[+{body_score}] Body keyword match")
 
-    # --- Layer 4a: Deadline proximity boost ---
-    if best_sentence:
-        try:
-            dates = dateparser.search.search_dates(best_sentence, languages=['en'],
-                                                   settings={'PREFER_DATES_FROM': 'future'})
-            if dates:
-                now = datetime.now(timezone.utc)
-                for _, date_obj in dates:
-                    if date_obj.tzinfo is None:
-                        date_obj = date_obj.replace(tzinfo=timezone.utc)
-                    diff = date_obj - now
-                    if timedelta(0) <= diff <= timedelta(hours=72):
-                        score += 35
-                        signals.append(f"[+35] Deadline within 72 hours: {date_obj}")
-                        break
-        except Exception:
-            pass
+    # --- Layer 4a: Tiered deadline proximity boost ---
+    # Searches best_sentence AND full body for date-like strings to catch renewals
+    search_text = best_sentence if best_sentence else body[:500]
+    try:
+        dates = dateparser.search.search_dates(search_text, languages=['en'],
+                                               settings={'PREFER_DATES_FROM': 'future'})
+        if dates:
+            now = datetime.now(timezone.utc)
+            for _, date_obj in dates:
+                if date_obj.tzinfo is None:
+                    date_obj = date_obj.replace(tzinfo=timezone.utc)
+                diff = date_obj - now
+                if timedelta(0) <= diff <= timedelta(hours=24):
+                    score += 40
+                    signals.append(f"[+40] Deadline within 24 hours: {date_obj.date()}")
+                    break
+                elif timedelta(0) <= diff <= timedelta(hours=72):
+                    score += 30
+                    signals.append(f"[+30] Deadline within 72 hours: {date_obj.date()}")
+                    break
+                elif timedelta(0) <= diff <= timedelta(days=14):
+                    score += 15
+                    signals.append(f"[+15] Deadline within 14 days: {date_obj.date()}")
+                    break
+    except Exception:
+        pass
 
     # --- Layer 4b: ALL-CAPS urgency words ---
     caps_words = re.findall(r'\b[A-Z]{3,}\b', subject + " " + body)
