@@ -415,9 +415,10 @@ def process_inbox():
         mail.select("INBOX")
 
         # Layer 1: Primary inbox only, unread, within 2 days
+        # The X-GM-RAW value must be double-quoted as an IMAP string literal (spaces inside)
         print("Searching for recent unread emails in Primary inbox...")
-        status, messages = mail.uid("SEARCH", None, "UNSEEN", "X-GM-RAW",
-                                    "newer_than:2d category:primary")
+        status, messages = mail.uid("SEARCH", "UNSEEN",
+                                    "X-GM-RAW", '"newer_than:2d category:primary"')
 
         if status != "OK":
             print("Failed to search emails.")
