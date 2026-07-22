@@ -105,6 +105,16 @@ def extract_domain(from_address):
     match = re.search(r"@([\w.-]+)", from_address)
     return match.group(1).lower() if match else ""
 
+def load_processed_ids():
+    if os.path.exists("processed_ids.txt"):
+        with open("processed_ids.txt", "r") as f:
+            return set(f.read().splitlines())
+    return set()
+
+def save_processed_ids(ids):
+    with open("processed_ids.txt", "w") as f:
+        f.write("\n".join(list(ids)[-1000:]))
+
 def split_sentences(text):
     # Basic sentence splitter
     return re.split(r'(?<=[.!?]) +', text)
@@ -173,9 +183,9 @@ def process_inbox():
         mail.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
         mail.select("INBOX")
 
-        # Search for unread and unstarred emails within the last 2 days
-        print("Searching for recent unread and unstarred emails...")
-        status, messages = mail.search(None, "UNSEEN", "UNFLAGGED", "X-GM-RAW", "newer_than:2d")
+        # Search for unread emails within the last 2 days
+        print("Searching for recent unread emails...")
+        status, messages = mail.uid("SEARCH", None, "UNSEEN", "X-GM-RAW", "newer_than:2d")
         
         if status != "OK":
             print("Failed to search emails.")
@@ -186,10 +196,16 @@ def process_inbox():
             print("No new emails to process.")
             return
 
+        processed_ids = load_processed_ids()
+
         for e_id in email_ids:
+            uid_str = e_id.decode()
+            if uid_str in processed_ids:
+                continue
+                
             try:
                 # Fetch BODY.PEEK[] (to avoid marking as read) and X-GM-THRID for deep linking
-                res, msg_data = mail.fetch(e_id, "(BODY.PEEK[] X-GM-THRID)")
+                res, msg_data = mail.uid("FETCH", e_id, "(BODY.PEEK[] X-GM-THRID)")
                 if res != "OK":
                     continue
                 
@@ -237,7 +253,8 @@ def process_inbox():
                     }
                     
                     if thread_id:
-                        headers["X-Click"] = f"https://mail.google.com/mail/u/0/#inbox/{thread_id}"
+                        # Use Android Intent scheme to force open the Gmail app instead of the browser
+                        headers["X-Click"] = f"intent://mail.google.com/mail/u/0/#inbox/{thread_id}#Intent;package=com.google.android.gm;scheme=https;end"
 
                     requests.post(
                         f"https://ntfy.sh/{NTFY_TOPIC}",
@@ -245,12 +262,13 @@ def process_inbox():
                         headers=headers
                     )
 
-                # Flag the email as processed (Starred) so we don't process it again
-                mail.store(e_id, "+FLAGS", "\\Flagged")
+                # Mark as processed in our local state so we don't process it again
+                processed_ids.add(uid_str)
                 
             except Exception as e:
-                print(f"Error processing email ID {e_id}: {e}")
+                print(f"Error processing email UID {uid_str}: {e}")
 
+        save_processed_ids(processed_ids)
         mail.logout()
         print("Processing complete.")
 

@@ -24,6 +24,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
+      - name: Restore Processed Emails State
+        uses: actions/cache/restore@v4
+        with:
+          path: processed_ids.txt
+          key: processed-state-${{ github.run_id }}
+          restore-keys: |
+            processed-state-
+          
       - name: Run NotifyMail Script
         env:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
@@ -31,3 +39,10 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           URGENCY_THRESHOLD: ${{ vars.URGENCY_THRESHOLD || '50' }}
         run: python notify_mail.py
+        
+      - name: Save Processed Emails State
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: processed_ids.txt
+          key: processed-state-${{ github.run_id }}
